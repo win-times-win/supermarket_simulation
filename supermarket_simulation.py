@@ -10,9 +10,18 @@ import pickle
 import my_constants
 
 from matplotlib import pyplot as plt
-from utils import save_obj, load_obj, clear, to_dummy_date, add_minute, state_index_to_vec, state_name_to_index
+from utils import (
+    save_obj,
+    load_obj,
+    clear,
+    to_dummy_date,
+    add_minute,
+    state_index_to_vec,
+    state_name_to_index,
+)
 from customer import Customer, customer_history_processing
 from visualize_simulation import Visualize_Simulation
+
 # %% Constants
 
 STATES = my_constants.STATES
@@ -22,7 +31,6 @@ PLOT = False
 VISUALIZE = True
 
 # %% Functions
-
 def generate_first_location_index():
     """
     Generates the first location index using the first_location_prob probabilities 
@@ -84,7 +92,7 @@ if __name__ == "__main__":
     # Plotting simulated customer behaviour
     # --------------------------------------------------------------------------------
     if PLOT:
-        \%% Plot the no. of customer at each section
+        # Plot the no. of customer at each section
         plt.figure(figsize=(15, 10))
         plt.plot(
             df_customer_history_filled["time"]

@@ -1,15 +1,28 @@
+""" Customer
+This script contains the class customer and functions for 
+generating shopping behaviour.
+"""
 import numpy as np
 import pandas as pd
 import cv2
 import my_constants
-import datetime 
+import datetime
 
 from findpath import FindPath
-from utils import save_obj, load_obj, clear, to_dummy_date, add_minute, state_index_to_vec, state_name_to_index
+from utils import (
+    save_obj,
+    load_obj,
+    clear,
+    to_dummy_date,
+    add_minute,
+    state_index_to_vec,
+    state_name_to_index,
+)
 
 STATES = my_constants.STATES
 TIME_INDEX = my_constants.TIME_INDEX
 location_coordinate = pd.read_csv("out/location_coordinate.csv")
+
 
 class Customer:
     """

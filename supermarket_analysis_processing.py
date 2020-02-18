@@ -9,6 +9,8 @@ import numpy as np
 import networkx as nx
 import datetime
 import pickle
+import my_constants
+import seaborn as sns
 from matplotlib import pyplot as plt
 from collections import Counter
 from utils import save_obj, load_obj
@@ -16,25 +18,10 @@ from utils import save_obj, load_obj
 # %%
 # PLOT = True if user wants to output and save the plots
 PLOT = True
-DAY_DICT = {
-    0: "Monday",
-    1: "Tuesday",
-    2: "Wednesday",
-    3: "Thursday",
-    4: "Friday",
-    5: "Saturday",
-    6: "Sunday",
-}
-STATES = ["checkout", "dairy", "drinks", "fruit", "spices"]
-
-# creates a per minute index for the time
-TIME_INDEX = pd.DataFrame(
-    columns=["hour"],
-    index=pd.date_range("2019-09-02 07:00:00", "2019-09-02 22:00:00", freq="1min"),
-)
-TIME_INDEX["hour"] = TIME_INDEX.index.time
-TIME_INDEX.reset_index(drop=True, inplace=True)
-# for saving and reading python objects
+DAY_DICT = my_constants.DAY_DICT
+STATES = my_constants.STATES
+TIME_INDEX = my_constants.TIME_INDEX
+sns.set()
 
 def _get_markov_edges(Q):
     """gets markov edge for plotting networkx markov chain"""

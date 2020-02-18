@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 from utils import add_minute
 
+
 class Visualize_Simulation:
     """
     Class of tools for visualizing the simulation.

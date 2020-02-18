@@ -1,3 +1,6 @@
+""" utils
+This script contains utilities.
+"""
 import pickle
 import datetime
 import my_constants
@@ -5,6 +8,7 @@ from os import system, name
 
 STATES = my_constants.STATES
 TIME_INDEX = my_constants.TIME_INDEX
+
 
 def clear():
     """ clears the screen"""
@@ -27,7 +31,8 @@ def load_obj(name):
     """load object from pickle file """
     with open("out/" + name + ".pkl", "rb") as f:
         return pickle.load(f)
-    
+
+
 def to_dummy_date(time_in):
     """Returns a dummy date in datetime.datetime for arithmetic"""
     return datetime.datetime(2000, 1, 1, time_in.hour, time_in.minute, 0)

@@ -1,3 +1,7 @@
+""" findpath
+This script contains the class FindPath for finding the optimal path
+at the shop.
+"""
 import numpy as np
 from pathfinding.core.diagonal_movement import DiagonalMovement
 from pathfinding.core.grid import Grid
