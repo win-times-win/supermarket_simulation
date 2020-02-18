@@ -1,4 +1,4 @@
 ﻿# Supermarket Simulation
-Analyzed existing customer data, generates and visualize new customer shopping behaviour.
+Analyzes existing customer data, generates and visualizes new customer shopping behaviour.
 
 ![](example.gif)
