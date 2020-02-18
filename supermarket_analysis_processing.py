@@ -145,6 +145,7 @@ time_spent_prob.replace(to_replace=0, method="ffill", inplace=True)
 
 for column in time_spent_prob.columns:
     time_spent_prob[column] = time_spent_prob[column] / time_spent_prob[column].sum()
+time_spent_prob['checkout'] = [0.5**i for i in range(1,31)]
 
 # %% Plot the total number of customer at each section
 if PLOT:
