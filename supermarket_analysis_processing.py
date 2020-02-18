@@ -11,6 +11,7 @@ import datetime
 import pickle
 from matplotlib import pyplot as plt
 from collections import Counter
+from utils import save_obj, load_obj
 
 # %%
 # PLOT = True if user wants to output and save the plots
@@ -34,19 +35,6 @@ TIME_INDEX = pd.DataFrame(
 TIME_INDEX["hour"] = TIME_INDEX.index.time
 TIME_INDEX.reset_index(drop=True, inplace=True)
 # for saving and reading python objects
-
-
-def save_obj(obj, name):
-    """saves object into pickle file """
-    with open("out/" + name + ".pkl", "wb") as f:
-        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-
-
-def load_obj(name):
-    """load object from pickle file """
-    with open("out/" + name + ".pkl", "rb") as f:
-        return pickle.load(f)
-
 
 def _get_markov_edges(Q):
     """gets markov edge for plotting networkx markov chain"""

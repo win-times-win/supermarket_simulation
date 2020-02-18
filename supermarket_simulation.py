@@ -7,63 +7,20 @@ import numpy as np
 import datetime
 import cv2
 import pickle
+import my_constants
 
 from matplotlib import pyplot as plt
-from os import system, name
-
-from pathfinding.core.diagonal_movement import DiagonalMovement
-from pathfinding.core.grid import Grid
-from pathfinding.finder.a_star import AStarFinder
-
+from utils import save_obj, load_obj, clear, to_dummy_date, add_minute, state_index_to_vec, state_name_to_index
+from customer import Customer
 # %% Constants
-STATES = ["checkout", "dairy", "drinks", "fruit", "spices"]
 
-TIME_INDEX = pd.DataFrame(
-    columns=["hour"],
-    index=pd.date_range("2019-09-02 07:00:00", "2019-09-02 23:59:00", freq="1min"),
-)
-TIME_INDEX["hour"] = TIME_INDEX.index.time
-TIME_INDEX.reset_index(drop=True, inplace=True)
-
+STATES = my_constants.STATES
+TIME_INDEX = my_constants.TIME_INDEX
 OUTPUT = True
 PLOT = False
 VISUALIZE = True
 
 # %% Functions
-def clear():
-    """ clears the screen"""
-    # for windows
-    if name == "nt":
-        _ = system("cls")
-
-    # for mac and linux(here, os.name is 'posix')
-    else:
-        _ = system("clear")
-
-
-def save_obj(obj, name):
-    """saves object into pickle file """
-    with open("out/" + name + ".pkl", "wb") as f:
-        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
-
-
-def load_obj(name):
-    """load object from pickle file """
-    with open("out/" + name + ".pkl", "rb") as f:
-        return pickle.load(f)
-
-
-def state_index_to_vec(state_index, no_of_states=len(STATES)):
-    """ Takes the state_index as input, outputs a vector that is all zero except the state_index which is 1."""
-    vec = [0] * no_of_states
-    vec[state_index] = 1
-    return vec
-
-
-def state_name_to_index(state_name, states=STATES):
-    """Takes the state_name as input, outputs its index on the list 'STATE'."""
-    return states.index(state_name)
-
 
 def generate_first_location_index():
     """
@@ -74,16 +31,6 @@ def generate_first_location_index():
         list(first_location_prob.keys()), p=list(first_location_prob.values())
     )
     return state_name_to_index(first_location)
-
-
-def to_dummy_date(time_in):
-    """Returns a dummy date in datetime.datetime for arithmetic"""
-    return datetime.datetime(2000, 1, 1, time_in.hour, time_in.minute, 0)
-
-
-def add_minute(time_in, min_add):
-    """Takes in a datetime.time and add minutes to it, returns a datetime.time"""
-    return (to_dummy_date(time_in) + datetime.timedelta(minutes=min_add)).time()
 
 
 def find_or_remove_occupancy(occupancy, customer_ID, find=False, remove=False):
@@ -325,335 +272,11 @@ def customer_history_processing(customer_list):
 
     return df_customer_history, df_customer_history_filled
 
-
-# %%
-class FindPath:
-    """
-    A class that uses the pathfinding module Astar algorithm to find the 
-    optimal path in a numpy matrix. 0 indicates obstable, 1 indicates walkable.
-    """
-
-    def __init__(self, mask, scale):
-        """    
-        Parameters
-        ----------
-        mask : numpy.array
-            A numpy array of 1 and 0
-        scale : float
-            The scale of the mask with respect to the original image
-        """
-        self.mask = np.pad(mask, [(0, 54), (0, 0)], mode="constant", constant_values=3)
-        self.grid = Grid(matrix=self.mask)
-        self.scale = scale
-
-    def find(self, start_coor, end_coor):
-        """Input start and end coordinate, returns the optimal path"""
-        start_coor = (
-            round(start_coor[0] * self.scale),
-            round(start_coor[1] * self.scale),
-        )
-        end_coor = round(end_coor[0] * self.scale), round(end_coor[1] * self.scale)
-
-        start = self.grid.node(start_coor[0], start_coor[1])
-        end = self.grid.node(end_coor[0], end_coor[1])
-
-        finder = AStarFinder(diagonal_movement=DiagonalMovement.always)
-        path, runs = finder.find_path(start, end, self.grid)
-
-        path = np.array(path)
-        path = (np.array(path) / self.scale).astype(int)
-        return path
-
-
-# %%
-class Customer:
-    """
-    Class for a single customer that can generate shopping pattern given the initial location,
-    speed, the time the customer spends at each section
-    """
-
-    def __init__(
-        self,
-        initial_location,
-        transition_matrix,
-        time_spent_prob,
-        starting_time_index,
-        states=STATES,
-        time_index=TIME_INDEX,
-    ):
-        """    
-        Parameters
-        ----------
-        initial_location : integer
-            Index of the first location
-        transition_matrix : pd.Dataframe
-            Transition matrix from out/transition_matrix.csv
-        time_spent_prob: pd.DataFrame
-            Probability matrix of time spent at each location from out/time_spent_prob.csv
-        starting_time_index: integer
-            Index of the starting time
-        """
-        self.current_state_vec = state_index_to_vec(initial_location)
-        self.transition_matrix_np = np.asarray(transition_matrix)
-        self.time_spent_prob = time_spent_prob
-        self.starting_time_index = starting_time_index
-
-        self.states = states
-        self.time_index = time_index
-
-        self.history = []
-        self.moving_i = 0
-        self.shoppingnow = False
-        self.moving = False
-
-    def shop(self):
-        """Generates a shopping history without queue information for the customer """
-        # if the customer is already at the checkout
-        if self.current_state_vec[0] == 1:
-            return "Customer already shopped"
-        duration = 0
-        event_no = 0
-        current_time_index = self.starting_time_index
-        while True:
-            location = self.states[self.current_state_vec.index(1)]
-            if self.current_state_vec[0] != 1:
-                duration_prob = np.array(self.time_spent_prob[location])
-                duration = np.random.choice(range(1, 31), p=duration_prob)
-                if current_time_index + duration > 900:
-                    duration = 900 - current_time_index
-                self.history.append(
-                    [
-                        location,
-                        duration,
-                        current_time_index,
-                        self.time_index.iloc[current_time_index, 0],
-                        event_no,
-                    ]
-                )
-            else:
-                duration_prob = np.array(self.time_spent_prob[location])
-                duration = np.random.choice(range(1, 31), p=duration_prob)
-                self.history.append(
-                    [
-                        location,
-                        duration,
-                        current_time_index,
-                        self.time_index.iloc[current_time_index, 0],
-                        event_no,
-                    ]
-                )
-                return "shopped"
-            current_time_index += duration
-            event_no += 1
-            # if the shop is still open
-            if current_time_index >= 900:
-                current_time_index = 900
-                # head to checkout
-                self.current_state_vec = state_index_to_vec(0)
-            else:
-                # calculate the next state probability
-                self.current_state_vec = np.matmul(
-                    self.current_state_vec, self.transition_matrix_np
-                )
-                # randomly choose the next state given the probability
-                self.current_state_vec = state_index_to_vec(
-                    np.random.choice(range(len(self.states)), p=self.current_state_vec)
-                )
-
-    def history_with_queue_no(self, customer_ID, df_customer_history):
-        """Updates customer history with queue no."""
-        i = 0
-        self.history = []
-        for row_no, row in df_customer_history[
-            df_customer_history["customer_ID"] == customer_ID
-        ].iterrows():
-            self.history.append([])
-            self.history[i].append(row["location"])
-            self.history[i].append(row["duration"])
-            self.history[i].append(
-                TIME_INDEX[TIME_INDEX["hour"] == row["time"]].index[0]
-            )
-            self.history[i].append(row["time"])
-            self.history[i].append(row["event_no"])
-            self.history[i].append(row["queue_no"])
-            i += 1
-
-    def move(self, simulation_time, mask, mask_exit, scale):
-        """Checks if there is a new event for the customer, updates the path if there is a new event"""
-        time_enter = to_dummy_date(np.array(self.history)[:, 3][0])
-        time_exit = to_dummy_date(np.array(self.history)[:, 3][-1])
-        if (to_dummy_date(simulation_time) >= time_enter) and (
-            to_dummy_date(simulation_time) <= time_exit
-        ):  # len(np.array(self.history)[:, 3])-1
-            self.shoppingnow = True
-            if not self.moving:
-                # if there is an event at the current simulation time
-                if simulation_time in np.array(self.history)[:, 3]:
-                    index = np.where(np.array(self.history)[:, 3] == simulation_time)[
-                        0
-                    ][0]
-
-                    # coordinate of the door
-                    if self.history[index][4] == 0:
-                        self.current_coordinate = (770, 700)
-                    next_location = np.array(self.history)[index][0]
-                    queue_no = np.array(self.history)[index][5]
-                    x = location_coordinate[
-                        np.logical_and(
-                            location_coordinate["location"] == next_location,
-                            location_coordinate["queue_no"] == queue_no,
-                        )
-                    ]["x"].values[0]
-                    y = location_coordinate[
-                        np.logical_and(
-                            location_coordinate["location"] == next_location,
-                            location_coordinate["queue_no"] == queue_no,
-                        )
-                    ]["y"].values[0]
-                    next_coordinate = (int(x), int(y))
-                    if next_location.find("checkout") != -1:
-                        mask = mask_exit
-                    findpath = FindPath(mask, scale)
-                    self.path_coord = findpath.find(
-                        self.current_coordinate, next_coordinate
-                    )
-                    self.current_coordinate = next_coordinate
-                    # initiate moving
-                    self.moving = True
-
-                    return (self.shoppingnow, self.moving)
-                else:
-                    return (self.shoppingnow, self.moving)
-            else:
-                return (self.shoppingnow, self.moving)
-        else:
-            self.shoppingnow = False
-            return (self.shoppingnow, self.moving)
-
-    def draw(self, simulation_time, layer):
-        """Draw the next instance of customer, returns the modified layer."""
-        if self.shoppingnow:
-            if self.moving:
-                if self.moving_i < len(self.path_coord):
-                    cv2.circle(
-                        layer,
-                        (
-                            self.path_coord[self.moving_i][0],
-                            self.path_coord[self.moving_i][1],
-                        ),
-                        12,
-                        (1, 200, 100),
-                        -1,
-                    )
-                    self.moving_i += 1
-                    return layer
-                else:
-                    self.moving_i = 0
-                    self.moving = False
-            if not self.moving:
-                cv2.circle(
-                    layer,
-                    (self.current_coordinate[0], self.current_coordinate[1]),
-                    12,
-                    (1, 200, 100),
-                    -1,
-                )
-                return layer
-        else:
-            return layer
-
-
-class Visualize_Simulation:
-    """
-    Class of tools for visualizing the simulation.
-    """
-
-    def __init__(
-        self, customer_list, starting_time, background, mask, mask_exit, scale=0.2
-    ):
-        """    
-        Parameters
-        ----------
-        customer_list : list
-            List of customer objects
-        starting_time : Datetime.time
-            Starting time of the simulation
-        background: image
-            Supermarket background
-        mask: image
-            Supermarket mask for pathfinding
-        mask_exit: image
-            Supermarket mask for pathfinding when heading to checkout
-        """
-        self.customer_list = customer_list
-        self.starting_time = starting_time
-        self.background = background
-
-        # resize mask for a more efficient Astar pathfinding
-        self.mask = cv2.resize(
-            mask, None, fx=scale, fy=scale, interpolation=cv2.INTER_LINEAR
-        )
-        self.mask = cv2.cvtColor(self.mask, cv2.COLOR_BGR2GRAY)
-        self.mask = cv2.threshold(self.mask, 1, 1, cv2.THRESH_BINARY)[1]
-
-        self.mask_exit = cv2.resize(
-            mask_exit, None, fx=scale, fy=scale, interpolation=cv2.INTER_LINEAR
-        )
-        self.mask_exit = cv2.cvtColor(self.mask_exit, cv2.COLOR_BGR2GRAY)
-        self.mask_exit = cv2.threshold(self.mask_exit, 1, 1, cv2.THRESH_BINARY)[1]
-
-        self.scale = scale
-
-    def visualize(self):
-        """Start visualization"""
-        i = 0
-        self.current_time = self.starting_time
-
-        font = cv2.FONT_HERSHEY_SIMPLEX
-        bottomLeftCornerOfText = (10, 500)
-        fontScale = 1
-        fontColor = (1, 1, 1)
-        lineType = 2
-
-        while True:
-            layer = np.zeros((self.background.shape[0], self.background.shape[1], 3))
-            frame = self.background.copy()
-            if i % 200 == 0:
-                self.current_time = add_minute(self.starting_time, i / 200)
-                for self.customer_ID, customer in enumerate(self.customer_list):
-                    customer.move(
-                        self.current_time, self.mask, self.mask_exit, self.scale
-                    )
-            for self.customer_ID, customer in enumerate(self.customer_list):
-                layer = customer.draw(self.current_time, layer)
-
-            cv2.putText(
-                layer,
-                self.current_time.strftime("%H:%M:%S"),
-                bottomLeftCornerOfText,
-                font,
-                fontScale,
-                fontColor,
-                lineType,
-            )
-            # filter to only display pixels that are not black
-            cnd = layer[:] > 0
-            frame[cnd] = layer[cnd]
-
-            cv2.imshow("frame", frame)
-            i += 1
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
-
-        cv2.destroyAllWindows()
-
-
 # %%
 if __name__ == "__main__":
     # reads the data processed by supermarket_analysis_processing.py
     transition_matrix = pd.read_csv("out/transition_matrix.csv", index_col=0)
     time_spent_prob = pd.read_csv("out/time_spent_prob.csv", index_col=0)
-    location_coordinate = pd.read_csv("out/location_coordinate.csv")
     df_entertime_freq = pd.read_csv("out/df_entertime_freq.csv", index_col=0)
     people_entering_per_min_mean = df_entertime_freq.mean(axis=1)
     people_entering_per_min_std = df_entertime_freq.std(axis=1)
@@ -694,11 +317,12 @@ if __name__ == "__main__":
     df_customer_history, df_customer_history_filled = customer_history_processing(
         customer_list
     )
+    # %%
     # --------------------------------------------------------------------------------
     # Plotting simulated customer behaviour
     # --------------------------------------------------------------------------------
     if PLOT:
-        #%% Plot the no. of customer at each section
+        \%% Plot the no. of customer at each section
         plt.figure(figsize=(15, 10))
         plt.plot(
             df_customer_history_filled["time"]
