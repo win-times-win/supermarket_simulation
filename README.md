@@ -3,6 +3,9 @@ Analyzes existing customer data, generates and visualizes new customer shopping 
 
 ![](example.gif)
 
+## Usage
+    python supermarket_simulation.py
+    
 ## Main Components
 - supermarket_analysis_processing.py:
   - EDA of original customer data and generating info to be used in the simulation.
